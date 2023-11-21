@@ -1,0 +1,127 @@
+mql5
+//+------------------------------------------------------------------+
+//|                                           PZ Grid MT4            |
+//|                          forexroboteasy.com - Forex Robot Easy Team|
+//+------------------------------------------------------------------+
+
+#property strict
+
+// Define input parameters
+input double lotSize = 0.01; // Lot size for each order
+input double gridDistance = 10; // Distance between grid orders
+input int maxOrders = 10; // Maximum number of grid orders
+input int drawdownPercentage = 20; // Maximum drawdown percentage
+
+// Define global variables
+int totalOrders = 0; // Total number of opened orders
+double initialBalance; // Initial account balance
+double maxDrawdown; // Maximum drawdown in account currency
+
+// Define trade signal function
+void TradeSignal()
+{
+   // Implement the GRID function to open orders
+   if(SignalCondition())
+   {
+      if(totalOrders < maxOrders)
+      {
+         double entryPrice = Bid;
+         for(int i = 0; i < totalOrders; i++)
+         {
+            double orderPrice = entryPrice - (i * gridDistance * Point);
+            if(!OrderExists(orderPrice))
+            {
+               OrderSend(Symbol(), OP_BUY, lotSize, orderPrice, 0, 0, 0, 'PZ Grid MT4', MagicNumber(), 0, clrGreen);
+               totalOrders++;
+            }
+         }
+      }
+   }
+}
+
+// Define check if order exists function
+bool OrderExists(double orderPrice)
+{
+   for(int i = 0; i < OrdersTotal(); i++)
+   {
+      if(OrderSelect(i, SELECT_BY_POS, MODE_TRADES))
+      {
+         if(OrderType() == OP_BUY && MathAbs(OrderOpenPrice() - orderPrice) < 0.0001)
+            return true;
+      }
+   }
+   return false;
+}
+
+// Define signal condition function
+bool SignalCondition()
+{
+   // Add your logic here
+   return true;
+}
+
+// Define DrawDown Reduce function
+void DrawDownReduce()
+{
+   double accountBalance = AccountBalance();
+   double drawdown = (accountBalance - initialBalance) / initialBalance * 100;
+   
+   if(drawdown > maxDrawdown)
+   {
+      // Close all orders
+      for(int i = OrdersTotal()-1; i >= 0; i--)
+      {
+         if(OrderSelect(i, SELECT_BY_POS, MODE_TRADES))
+         {
+            OrderClose(OrderTicket(), OrderLots(), OrderClosePrice(), 0, clrRed);
+         }
+      }
+      
+      // Reset variables
+      totalOrders = 0;
+   }
+}
+
+//+------------------------------------------------------------------+
+//| Expert initialization function                                   |
+//+------------------------------------------------------------------+
+int OnInit()
+{
+   // Store initial balance and calculate maximum drawdown
+   initialBalance = AccountBalance();
+   maxDrawdown = initialBalance * drawdownPercentage / 100;
+   
+   return(INIT_SUCCEEDED);
+}
+
+//+------------------------------------------------------------------+
+//| Expert deinitialization function                                 |
+//+------------------------------------------------------------------+
+void OnDeinit(const int reason)
+{
+   // Perform necessary cleanup tasks
+}
+
+//+------------------------------------------------------------------+
+//| Expert tick function                                             |
+//+------------------------------------------------------------------+
+void OnTick()
+{
+   // Check for news events using news filter
+   if(!NewsFilter())
+   {
+      // Generate trading signals
+      TradeSignal();
+   }
+   
+   // Reduce drawdown
+   DrawDownReduce();
+}
+
+// Define news filter function
+bool NewsFilter()
+{
+   // Add your news filtering logic here
+   return false;
+}
+
